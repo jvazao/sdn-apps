@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="com.fct.nat.impl.NATManager" activate="activate" deactivate="deactivate">
+    <implementation class="com.fct.nat.impl.NATManager"/>
+    <service servicefactory="false">
+        <provide interface="com.fct.nat.api.NATService"/>
+    </service>
+    <property name="service.pid" value="com.fct.nat.impl.NATManager"/>
+    <reference name="controllerService" interface="com.hp.of.ctl.ControllerService" cardinality="1..1" policy="dynamic" bind="bindControllerService" unbind="unbindControllerService"/>
+</scr:component>

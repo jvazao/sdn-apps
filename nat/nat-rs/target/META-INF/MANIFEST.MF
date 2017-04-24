@@ -1,0 +1,22 @@
+Manifest-Version: 1.0
+Bnd-LastModified: 1492794553333
+Build-Jdk: 1.8.0_121
+Built-By: sdnctl
+Bundle-Description: Network Address Translation - REST API module
+Bundle-ManifestVersion: 2
+Bundle-Name: nat-rs
+Bundle-SymbolicName: com.fct.nat.nat-rs
+Bundle-Version: 1.0.0.SNAPSHOT
+Created-By: Apache Maven Bundle Plugin
+Import-Package: com.fasterxml.jackson.databind;version="[2.1,3)",com.fas
+ terxml.jackson.databind.node;version="[2.1,3)",com.fct.nat.api;version=
+ "[1.0,2)",com.fct.nat.model;version="[1.0,2)",com.hp.api,com.hp.sdn.adm
+ .rsdoc;version="[2.7,3)",com.hp.sdn.rs.misc;version="[2.7,3)",com.hp.ut
+ il.rs,com.hp.util.rs.auth,com.sun.jersey.api.core;version="[1.17,2)",co
+ m.sun.jersey.server.impl.container.servlet,com.sun.jersey.spi.container
+ .servlet,javax.ws.rs.core;version="[1.1,2)"
+Service-Component: OSGI-INF/com.fct.nat.rs.DocProvider.xml,OSGI-INF/com.
+ fct.nat.rs.ServiceAssistant.xml
+Tool: Bnd-1.50.0
+Web-ContextPath: sdn/nat/v1.0
+Webapp-Context: sdn/nat/v1.0

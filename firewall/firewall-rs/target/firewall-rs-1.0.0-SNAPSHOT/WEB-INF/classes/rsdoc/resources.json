@@ -1,0 +1,1 @@
+{"apiVersion":"1.0","apiName":"Firewall v1.0","swaggerVersion":"1.1","basePath":"https://localhost/api/rsdoc","apis":[{"path":"/Firewall.{format}"}]}

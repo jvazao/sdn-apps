@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="com.fct.firewall.rs.DocProvider" deactivate="stop">
+    <implementation class="com.fct.firewall.rs.DocProvider"/>
+    <property name="service.pid" value="com.fct.firewall.rs.DocProvider"/>
+    <reference name="RSDocRegistry" interface="com.hp.sdn.adm.rsdoc.RSDocRegistry" cardinality="0..1" policy="dynamic" bind="bindRSDocRegistry" unbind="unbindRSDocRegistry"/>
+</scr:component>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <parent>
+        <groupId>com.fct.firewall</groupId>
+        <artifactId>firewall-root</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../firewall-root/pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>firewall-model</artifactId>
+    <packaging>bundle</packaging>
+
+    <name>firewall-model</name>
+    <description>Firewall - domain model module</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.hp.util</groupId>
+            <artifactId>hp-util-misc</artifactId>
+            <version>${hp-util.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hp.util</groupId>
+            <artifactId>hp-util-api</artifactId>
+            <version>${hp-util.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.hp.sdn</groupId>
+            <artifactId>sdn-common-model</artifactId>
+            <version>${sdn.version}</version>
+        </dependency>
+    </dependencies>
+    
+</project>

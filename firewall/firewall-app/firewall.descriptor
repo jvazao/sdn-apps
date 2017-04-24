@@ -1,0 +1,5 @@
+id=com.fct.firewall
+name=Firewall
+version=1.0.0.SNAPSHOT
+vendor=fct
+description=Application for blocking DNS and unwanted Ip traffic

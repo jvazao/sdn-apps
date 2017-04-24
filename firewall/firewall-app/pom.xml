@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <parent>
+        <groupId>com.fct.firewall</groupId>
+        <artifactId>firewall-root</artifactId>
+        <version>1.0.0-SNAPSHOT</version>
+        <relativePath>../firewall-root/pom.xml</relativePath>
+    </parent>
+
+    <modelVersion>4.0.0</modelVersion>
+    <artifactId>firewall-app</artifactId>
+    <packaging>pom</packaging>
+
+    <name>firewall-app</name>
+    <description>Firewall - application packaging module</description>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fct.firewall</groupId>
+            <artifactId>firewall-model</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fct.firewall</groupId>
+            <artifactId>firewall-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fct.firewall</groupId>
+            <artifactId>firewall-bl</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>package-app</id>
+                        <phase>package</phase>
+                        <configuration>
+                            <tasks>
+                                <mkdir dir="target/bundles" />
+
+                                <copy todir="target/bundles/" flatten="true">
+                                    <fileset dir="/home/sdnctl/.m2/repository/com/fct/firewall/">
+                                        <include name="firewall-model/${project.version}/firewall-model-${project.version}.jar"/>
+                                        <include name="firewall-api/${project.version}/firewall-api-${project.version}.jar"/>
+                                        <include name="firewall-dao-api/${project.version}/firewall-dao-api-${project.version}.jar"/>
+                                        <include name="firewall-bl/${project.version}/firewall-bl-${project.version}.jar"/>
+                                        <include name="firewall-dao/${project.version}/firewall-dao-${project.version}.jar"/>
+                                        <include name="firewall-rs/${project.version}/firewall-rs-${project.version}.war"/>
+                                        <include name="firewall-ui/${project.version}/firewall-ui-${project.version}.war"/>
+                                    </fileset>
+                                    <fileset dir="${basedir}" includes="firewall.descriptor"/>
+                                </copy>
+
+                                <zip destfile="target/firewall-${project.version}.zip" basedir="target/bundles"/>
+                            </tasks>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+    
+</project>

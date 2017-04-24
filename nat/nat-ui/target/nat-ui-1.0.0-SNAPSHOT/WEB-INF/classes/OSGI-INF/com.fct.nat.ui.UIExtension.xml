@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<scr:component xmlns:scr="http://www.osgi.org/xmlns/scr/v1.1.0" name="com.fct.nat.ui.UIExtension" deactivate="stop">
+    <implementation class="com.fct.nat.ui.UIExtension"/>
+    <property name="service.pid" value="com.fct.nat.ui.UIExtension"/>
+    <reference name="UIExtensionRegistry" interface="com.hp.util.ski.UIExtensionRegistry" cardinality="0..1" policy="dynamic" bind="bindUIExtensionRegistry" unbind="unbindUIExtensionRegistry"/>
+</scr:component>
