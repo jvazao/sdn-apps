@@ -28,7 +28,6 @@ import com.hp.util.ip.TcpUdpPort;
 public class DataStructure {
 	private List<DataModel> data;
 	private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-
 	private static final Logger LOG = LoggerFactory.getLogger(DataStructure.class);
 	private static final String PATH = "/home/sdnctl/dev/sdn-apps/nat/";
 
@@ -44,8 +43,9 @@ public class DataStructure {
 	/**
 	 * Instantiates the first part of the data structure on the flow creation
 	 * */
-	public void save(Date time, EthernetType eth_type, MacAddress eth_src, IpAddress ipv4_src, 
-			IpAddress ipv4_dst, IpProtocol ip_proto, TcpUdpPort port_src, TcpUdpPort port_dst, long cookie) {
+	public void save(Date time, EthernetType eth_type, MacAddress eth_src,
+			IpAddress ipv4_src, IpAddress ipv4_dst, IpProtocol ip_proto,
+			TcpUdpPort port_src, TcpUdpPort port_dst, long cookie) {
 
 		DataModel dm = new DataModel();
 
@@ -67,8 +67,9 @@ public class DataStructure {
 	 * Instantiates the second part of the data structure once the flow expires
 	 * and the counters became available.
 	 * */
-	public void save(long byteCount, long cookie, long durationSeconds, int hardTimeout, 
-			int idleTimout, long packetCount, int priority, TableId tableId, FlowRemovedReason reason) {
+	public void save(long byteCount, long cookie, long durationSeconds,
+			int hardTimeout, int idleTimout, long packetCount, int priority,
+			TableId tableId, FlowRemovedReason reason) {
 
 		for (int i = 0; i < data.size(); i++) {
 			if (data.get(i).cookie == cookie && data.get(i).reason == null) {
@@ -86,7 +87,7 @@ public class DataStructure {
 
 		LOG.info("NAT: DataStructure: save(): Second part of the DataModel Instantiated");
 
-		// Save the expired flows to the csv file
+		// Save the expired flows to the .csv file
 		FileWriter pw = null;
 
 		try {
@@ -136,12 +137,12 @@ public class DataStructure {
 		} catch (Exception e) {
 			LOG.info("NAT: DataStructure: save(): Error Creating cvs file");
 			e.printStackTrace();
-			
+
 		} finally {
 			try {
 				pw.flush();
 				pw.close();
-				// LOG.info("NAT: DataStructure: save(): written to file");
+				LOG.info("NAT: DataStructure: save(): written to file");
 
 			} catch (IOException e) {
 				LOG.info("NAT: DataStructure: save(): Error closing the file");

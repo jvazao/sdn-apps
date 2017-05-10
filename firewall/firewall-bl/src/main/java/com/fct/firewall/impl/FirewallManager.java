@@ -81,7 +81,7 @@ public class FirewallManager implements FirewallService {
     protected void deactivate() {
     	switchListener.shutdown();
     	packetListener.shutdown();
-    	dnsBlacklist.clear();
+    	//dnsBlacklist.clear();
     	
     	LOG.info("Firewall: FirewallManager: deactivate()");
     }

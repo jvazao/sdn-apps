@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1492794518809
+Bnd-LastModified: 1493993072107
 Build-Jdk: 1.8.0_121
 Built-By: sdnctl
 Bundle-Description: Network Address Translation - domain model module

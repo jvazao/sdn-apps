@@ -124,6 +124,9 @@ public class PacketListener implements SequencedPacketListener {
             			//TODO deal with other message types
             			//TODO send 
             		}
+            	} else {
+            		if (Network.SVI_IP.isUndetermined())
+            			dhcp.discovery();
             	}
             }
             

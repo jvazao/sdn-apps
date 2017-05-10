@@ -1,5 +1,5 @@
 Manifest-Version: 1.0
-Bnd-LastModified: 1492794566222
+Bnd-LastModified: 1493993121185
 Build-Jdk: 1.8.0_121
 Built-By: sdnctl
 Bundle-Description: Network Address Translation - user interface module

@@ -19,49 +19,50 @@ import com.hp.util.ip.PortNumber;
 
 public class FlowEventListener implements FlowListener {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FlowEventListener.class);
-    private volatile ControllerService mControllerService;
-    private PortMapping portPool;    
-    private DataStructure data;
-        
-    public void init(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure) {
-        mControllerService = controllerService;
-        portPool = portMapping;
-        data = dataStructure;
-        LOG.info("NAT: FlowListener: init()");
-    }
+	private static final Logger LOG = LoggerFactory
+			.getLogger(FlowEventListener.class);
+	private volatile ControllerService mControllerService;
+	private PortMapping portPool;
+	private DataStructure data;
 
-    public void startup() {
-        mControllerService.addFlowListener(this);
-        LOG.info("NAT: FlowListener: startup()");
-    }
+	public void init(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure) {
+		mControllerService = controllerService;
+		portPool = portMapping;
+		data = dataStructure;
+		LOG.info("NAT: FlowListener: init()");
+	}
 
-    public void shutdown() {
-        mControllerService.removeFlowListener(this);
-        LOG.info("NAT: SwitchListener: shutdown()");
-    }
+	public void startup() {
+		mControllerService.addFlowListener(this);
+		LOG.info("NAT: FlowListener: startup()");
+	}
 
-    @Override
-    public void event(FlowEvent event) {
-        if (event.flowRemoved() != null) {
-        	
-        	LOG.info("NAT: FlowEvent: event(): saving data");        	
-        	data.save(event.flowRemoved().getByteCount(), 
-        			event.flowRemoved().getCookie(), 
-        			event.flowRemoved().getDurationSeconds(), 
-        			event.flowRemoved().getHardTimeout(), 
-        			event.flowRemoved().getIdleTimeout(), 
-        			event.flowRemoved().getPacketCount(), 
-        			event.flowRemoved().getPriority(),
-        			event.flowRemoved().getTableId(),
-        			event.flowRemoved().getReason()
-        	);
-        	
-        	portPool.put(PortNumber.valueOf(String.valueOf(event.flowRemoved().getCookie())));
-        	
-        } else {
-        	LOG.info("NAT: FlowEventListener: event(): no flows were removed");
-        }
-    }
-    
+	public void shutdown() {
+		mControllerService.removeFlowListener(this);
+		LOG.info("NAT: SwitchListener: shutdown()");
+	}
+
+	@Override
+	public void event(FlowEvent event) {
+		if (event.flowRemoved() != null) {
+
+			LOG.info("NAT: FlowEvent: event(): saving data");
+			data.save(event.flowRemoved().getByteCount(), 
+					event.flowRemoved().getCookie(), 
+					event.flowRemoved().getDurationSeconds(),
+					event.flowRemoved().getHardTimeout(), 
+					event.flowRemoved().getIdleTimeout(),
+					event.flowRemoved().getPacketCount(),
+					event.flowRemoved().getPriority(), 
+					event.flowRemoved().getTableId(),
+					event.flowRemoved().getReason()
+			);
+
+			portPool.put(PortNumber.valueOf(String.valueOf(event.flowRemoved().getCookie())));
+
+		} else {
+			LOG.info("NAT: FlowEventListener: event(): no flows were removed");
+		}
+	}
+
 }

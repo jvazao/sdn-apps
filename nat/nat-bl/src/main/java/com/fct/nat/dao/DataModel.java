@@ -16,7 +16,7 @@ import com.hp.util.ip.IpProtocol;
 import com.hp.util.ip.MacAddress;
 import com.hp.util.ip.TcpUdpPort;
 
-public class DataModel {	
+public class DataModel {
 	public Date time;
 	public EthernetType eth_type;
 	public MacAddress eth_src;
@@ -25,7 +25,7 @@ public class DataModel {
 	public IpProtocol ip_proto;
 	public TcpUdpPort port_src;
 	public TcpUdpPort port_dst;
-	
+
 	public long byteCount;
 	public long cookie;
 	public long durationSeconds;
@@ -36,7 +36,7 @@ public class DataModel {
 	public TableId tableId;
 	public String reason;
 	public boolean isReady;
-	
+
 	public DataModel() {
 		this.time = null;
 		this.eth_type = null;
@@ -46,8 +46,8 @@ public class DataModel {
 		this.ip_proto = null;
 		this.port_src = null;
 		this.port_dst = null;
-		
-		this.byteCount = 0 ;
+
+		this.byteCount = 0;
 		this.cookie = 0;
 		this.durationSeconds = 0;
 		this.hardTimeout = 0;
@@ -56,8 +56,8 @@ public class DataModel {
 		this.priority = 0;
 		this.tableId = null;
 		this.reason = null;
-		
+
 		this.isReady = false;
 	}
-	
+
 }
