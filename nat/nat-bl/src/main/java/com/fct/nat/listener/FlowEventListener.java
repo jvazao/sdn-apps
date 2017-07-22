@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fct.nat.dao.DataStructure;
+import com.fct.nat.dao.Performance;
 import com.fct.nat.impl.PortMapping;
 import com.hp.of.ctl.ControllerService;
 import com.hp.of.ctl.flow.FlowEvent;
@@ -19,17 +20,20 @@ import com.hp.util.ip.PortNumber;
 
 public class FlowEventListener implements FlowListener {
 
-	private static final Logger LOG = LoggerFactory
-			.getLogger(FlowEventListener.class);
+	private static final Logger LOG = LoggerFactory.getLogger(FlowEventListener.class);
 	private volatile ControllerService mControllerService;
 	private PortMapping portPool;
 	private DataStructure data;
-
-	public void init(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure) {
+	
+	private Performance perf; //TODO delete this afterwards
+	
+	public void init(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure, Performance p) {
 		mControllerService = controllerService;
 		portPool = portMapping;
 		data = dataStructure;
 		LOG.info("NAT: FlowListener: init()");
+		
+		perf = p; // TODO delete this as well
 	}
 
 	public void startup() {
@@ -43,9 +47,10 @@ public class FlowEventListener implements FlowListener {
 	}
 
 	@Override
-	public void event(FlowEvent event) {
-		if (event.flowRemoved() != null) {
-
+	public void event(FlowEvent event) {		
+		if (event.flowRemoved() != null 
+				&& portPool.isFromPortPool( (int) event.flowRemoved().getCookie())) {
+			
 			LOG.info("NAT: FlowEvent: event(): saving data");
 			data.save(event.flowRemoved().getByteCount(), 
 					event.flowRemoved().getCookie(), 
@@ -60,9 +65,9 @@ public class FlowEventListener implements FlowListener {
 
 			portPool.put(PortNumber.valueOf(String.valueOf(event.flowRemoved().getCookie())));
 
+			perf.flowRemoved(); //TODO remove this
 		} else {
 			LOG.info("NAT: FlowEventListener: event(): no flows were removed");
 		}
 	}
-
 }

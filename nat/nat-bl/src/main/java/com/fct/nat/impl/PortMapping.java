@@ -70,8 +70,8 @@ public final class PortMapping {
 				return PortNumber.valueOf(i);
 			}
 		}
-		// default return
-		return null;
+
+		return null; // default return
 	}
 
 	/**
@@ -82,5 +82,11 @@ public final class PortMapping {
 			System.out.println("NAT: PortMapping: " + i + " - " + POOL.get(i));
 		}
 	}
-
+	
+	/**
+	 * returns true if a number is within the pool limits, false otherwise
+	 * */
+	public boolean isFromPortPool(int cookie) {
+		return (cookie >= LOWER_LIMIT && cookie <= (LOWER_LIMIT + RANGE));
+	}
 }

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fct.nat.api.NATService;
 import com.fct.nat.dao.DataStructure;
+import com.fct.nat.dao.Performance;
 import com.fct.nat.handler.ArpPacketHandler;
 import com.fct.nat.handler.DhcpPacketHandler;
 import com.fct.nat.handler.IpPacketHandler;
@@ -48,15 +49,18 @@ public class NATManager implements NATService {
     private ArpPacketHandler arpHandler;
     private DhcpPacketHandler dhcpHandler;
     private IpPacketHandler ipHandler;
-        
+    
+    private Performance perf;
+          
     @Activate
     protected void activate() {
     	portPool = new PortMapping(2000);
     	data = new DataStructure();
+    	perf = new Performance(); // TODO delete afterwards
     	
     	arpHandler = new ArpPacketHandler(controllerService);
     	dhcpHandler = new DhcpPacketHandler(controllerService);
-    	ipHandler = new IpPacketHandler(controllerService, portPool, data);
+    	ipHandler = new IpPacketHandler(controllerService, portPool, data, perf);
     	
         switchListener = new SwitchListener();
         switchListener.init(controllerService, arpHandler, dhcpHandler);
@@ -67,9 +71,9 @@ public class NATManager implements NATService {
         packetListener.startup();
 
         flowListener = new FlowEventListener();
-        flowListener.init(controllerService, portPool, data);
+        flowListener.init(controllerService, portPool, data, perf);
         flowListener.startup();
-      
+        
         LOG.info("NAT: NATManager: activate()");
     }
 

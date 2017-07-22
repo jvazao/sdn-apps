@@ -35,16 +35,16 @@ import com.hp.util.pkt.Packet;
 
 public class ArpPacketHandler {
 
-	ControllerService mControllerService;
 	private static final Logger LOG = LoggerFactory.getLogger(ArpPacketHandler.class);
+	ControllerService cs;
 	private static ProtocolVersion PV = ProtocolVersion.V_1_3;
 	protected HashMap<IpAddress, MacAddress> arpTable;
 
 	public ArpPacketHandler(ControllerService controllerService) {
-		mControllerService = controllerService;
+		cs = controllerService;
 		arpTable = new HashMap<IpAddress, MacAddress>();
 
-		arpTable.put(Network.DEE_GATEWAY_IP, Network.DEE_GATEWAY_MAC);
+		arpTable.put(Network.STAFF_GATEWAY_IP, Network.STAFF_GATEWAY_MAC);
 	}
 
 	/**
@@ -103,7 +103,7 @@ public class ArpPacketHandler {
 		packetOut.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, inPort));
 
 		try {
-			mControllerService.send(packetOut.toImmutable(), Network.SDN_DPID);
+			cs.send(packetOut.toImmutable(), Network.SDN_DPID_HP1);
 			LOG.info("NAT: ArpPacketHandler: reply(): packetOut sent");
 		} catch (OpenflowException e) {
 			LOG.error("NAT: ArpPacketHandler: reply(): Exception {}", e.getCause());
@@ -142,7 +142,7 @@ public class ArpPacketHandler {
 		packetOut.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
 
 		try {
-			mControllerService.send(packetOut.toImmutable(), Network.SDN_DPID);
+			cs.send(packetOut.toImmutable(), Network.SDN_DPID_HP1);
 			LOG.info("NAT: ArpPacketHandler: request(): packetOut sent");
 		} catch (OpenflowException e) {
 			LOG.error("NAT: ArpPacketHandler: request(): Exception {}",

@@ -25,6 +25,8 @@ public class Performance {
 		LOG.info("NAT: Performance: flowCreated(): {} {}", this.totalCount, t);
 		LOG.info("NAT: Performance: flowRemoved():", data.size());
 		data.add( new Tuple(this.totalCount, t));
+		
+		if (data.size() > 10) this.dump();
 	}
 	
 	public void flowRemoved() {

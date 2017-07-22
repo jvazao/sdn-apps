@@ -16,6 +16,7 @@ import org.slf4j.LoggerFactory;
 
 import com.fct.nat.common.Network;
 import com.fct.nat.dao.DataStructure;
+import com.fct.nat.dao.Performance;
 import com.fct.nat.impl.PortMapping;
 import com.hp.of.ctl.ControllerService;
 import com.hp.of.ctl.pkt.MessageContext;
@@ -57,11 +58,11 @@ import com.hp.util.pkt.Tcp;
 import com.hp.util.pkt.Udp;
 
 public class IpPacketHandler {
-	private ControllerService mControllerService;
+	private ControllerService cs;
 	private static final Logger LOG = LoggerFactory.getLogger(IpPacketHandler.class);
 
 	private static final ProtocolVersion PV = ProtocolVersion.V_1_3;
-	private static final TableId FLOW_TABLE = TableId.valueOf(200);
+	private static final TableId T1_TABLE = TableId.valueOf(200);
 	private static final int FLOW_PRIORITY = 40000;
 	private static final int FLOW_IDLE_TIMEOUT = 120;
 	private static final int FLOW_DNS_IDLE_TIMEOUT = 90;
@@ -71,17 +72,22 @@ public class IpPacketHandler {
 	private PortMapping portPool;
 	private PortNumber port;
 	private DataStructure data;
+	
+	private Performance perf;
 
-	public IpPacketHandler(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure) {
-		mControllerService = controllerService;
+	public IpPacketHandler(ControllerService controllerService, PortMapping portMapping, DataStructure dataStructure, Performance p) {
+		cs = controllerService;
 		portPool = portMapping;
 		data = dataStructure;
+		perf = p;
 	}
 
 	public void dns(MessageContext mc, Ethernet ethData, Ip ipData, Udp udpData, BigPortNumber inPort) {
+		long dnsTimer = System.currentTimeMillis(); //TODO performance
+		
 		LOG.info("NAT: IpPacketHandler: dns(): handling DNS packet");
 		port = portPool.get();
-
+		
 		OfmMutableFlowMod srcDstFlow = 
 				(OfmMutableFlowMod) MessageFactory.create(PV, MessageType.FLOW_MOD, FlowModCommand.ADD);
 
@@ -93,7 +99,7 @@ public class IpPacketHandler {
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.UDP_DST, PortNumber.valueOf(53)));
 		LOG.info("NAT: IpPacketHandler: dns(): created direct matching fields for DNS");
 
-		srcDstFlow.tableId(FLOW_TABLE)
+		srcDstFlow.tableId(T1_TABLE)
 				.flowModFlags(FLOW_FLAGS)
 				.cookie((long) port.toInt())
 				.hardTimeout(FLOW_HARD_TIMEOUT)
@@ -103,7 +109,7 @@ public class IpPacketHandler {
 
 		InstrMutableAction srcDstInstruction = InstructionFactory.createMutableInstruction(PV, InstructionType.APPLY_ACTIONS)
 				.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC))
-				.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC))
+				.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC))
 				.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP))
 				// .addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.UDP_SRC, port))
 				.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
@@ -122,15 +128,15 @@ public class IpPacketHandler {
 
 		MutableMatch dstSrcMatch = MatchFactory.createMatch(PV)
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.ETH_TYPE, EthernetType.IPv4))
-				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IPV4_SRC, Network.DEE_DNS_IP))
+				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IPV4_SRC, Network.STAFF_DNS_IP))
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IPV4_DST, Network.SVI_IP))
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IP_PROTO, IpProtocol.UDP))
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.UDP_SRC, PortNumber.valueOf(53)));
 				// .addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.UDP_DST, port));
 		LOG.info("NAT: IpPacketHandler dns(): created reverse matching fields for DNS");
 
-		dstSrcFlow.tableId(FLOW_TABLE
-				).flowModFlags(FLOW_FLAGS)
+		dstSrcFlow.tableId(T1_TABLE)
+				.flowModFlags(FLOW_FLAGS)
 				.cookie((long) port.toInt())
 				.hardTimeout(FLOW_HARD_TIMEOUT)
 				.idleTimeout(FLOW_DNS_IDLE_TIMEOUT)
@@ -148,12 +154,12 @@ public class IpPacketHandler {
 
 		// Save the reverse flow information
 		data.save(new Date(), EthernetType.IPv4, ethData.dstAddr(),
-				Network.DEE_DNS_IP, Network.SVI_IP, IpProtocol.UDP,
+				Network.STAFF_DNS_IP, Network.SVI_IP, IpProtocol.UDP,
 				TcpUdpPort.udpPort(53), udpData.srcPort(), (long) port.toInt());
 
 		if (!mc.isSent()) {
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC));
-			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC));
+			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC));
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP));
 			// mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.UDP_SRC, port));
 			mc.packetOut().addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
@@ -162,16 +168,19 @@ public class IpPacketHandler {
 		}
 
 		try {
-			mControllerService.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			mControllerService.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			LOG.info("NAT: IpPacketHandler: dns(): flows sended to datapath {}", Network.SDN_DPID);
+			cs.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			cs.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			LOG.info("NAT: IpPacketHandler: dns(): flows sended to datapath {}", Network.SDN_DPID_HP1);
+			
+			perf.flowCreated(System.currentTimeMillis() - dnsTimer); //TODO performance
 		} catch (Exception e) {
 			LOG.info("NAT: IpPacketHandler: dns(): Exception: {}", e.getCause());
 		}
 	}
 
-	public void icmp(boolean toInternet, MessageContext mc, Ethernet ethData,
-			Ip ipData, MacAddress targetMacAddr, BigPortNumber inPort) {
+	public void icmp(boolean toInternet, MessageContext mc, Ethernet ethData, Ip ipData, MacAddress targetMacAddr, BigPortNumber inPort) {
+		long icmpTimer = System.currentTimeMillis(); //TODO performance
+		
 		LOG.info("NAT: IpPacketHandler: Icmp(): handling ICMP packet");
 		port = portPool.get();
 
@@ -185,7 +194,7 @@ public class IpPacketHandler {
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IP_PROTO, IpProtocol.ICMP));
 		LOG.info("NAT: IpPacketHandler: icmp(): created direct matching fields for ICMP");
 
-		srcDstFlow.tableId(FLOW_TABLE).flowModFlags(FLOW_FLAGS)
+		srcDstFlow.tableId(T1_TABLE).flowModFlags(FLOW_FLAGS)
 				.hardTimeout(FLOW_HARD_TIMEOUT).idleTimeout(FLOW_IDLE_TIMEOUT)
 				.priority(FLOW_PRIORITY)
 				.match((Match) srcDstMatch.toImmutable());
@@ -195,7 +204,7 @@ public class IpPacketHandler {
 		if (toInternet) {
 			srcDstInstruction = InstructionFactory.createMutableInstruction(PV, InstructionType.APPLY_ACTIONS)
 					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC))
-					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC))
+					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC))
 					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP))
 					.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
 
@@ -226,7 +235,7 @@ public class IpPacketHandler {
 				.addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.IP_PROTO, IpProtocol.ICMP));
 		LOG.info("NAT: IpPacketHandler: icmp(): created reverse matching fields for ICMP");
 
-		dstSrcFlow.tableId(FLOW_TABLE)
+		dstSrcFlow.tableId(T1_TABLE)
 				.flowModFlags(FLOW_FLAGS)
 				.hardTimeout(FLOW_HARD_TIMEOUT)
 				.idleTimeout(FLOW_IDLE_TIMEOUT)
@@ -250,7 +259,7 @@ public class IpPacketHandler {
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC));
 
 			if (toInternet)
-				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC));
+				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC));
 			else mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, targetMacAddr));
 
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV,OxmBasicFieldType.IPV4_SRC, Network.SVI_IP));
@@ -260,15 +269,19 @@ public class IpPacketHandler {
 		}
 
 		try {
-			mControllerService.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			mControllerService.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			LOG.info("NAT: IpPacketHandler: icmp(): flows sended to datapath {}", Network.SDN_DPID);
+			cs.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			cs.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			LOG.info("NAT: IpPacketHandler: icmp(): flows sended to datapath {}", Network.SDN_DPID_HP1);
+			
+			perf.flowCreated(System.currentTimeMillis() - icmpTimer); //TODO performance
 		} catch (Exception e) {
 			LOG.info("NAT: IpPacketHandler: icmp(): Exception: {}", e);
 		}
 	}
 
 	public void tcp(boolean toInternet, MessageContext mc, Ethernet ethData, Ip ipData, Tcp tcpData, MacAddress targetMacAddr, BigPortNumber inPort) {
+		long tcpTimer = System.currentTimeMillis(); //TODO performance
+		
 		LOG.info("NAT: IpPacketHandler: tcp(): handling TCP packet");
 		port = portPool.get();
 
@@ -285,7 +298,7 @@ public class IpPacketHandler {
 				// .addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.TCP_DST, PortNumber.valueOf(tcpData.dstPort().getNumber())));
 		LOG.info("NAT: IpPacketHandler: tcp(): created direct matching fields for TCP");
 
-		srcDstFlow.tableId(FLOW_TABLE)
+		srcDstFlow.tableId(T1_TABLE)
 				.flowModFlags(FLOW_FLAGS)
 				.cookie((long) port.toInt())
 				.hardTimeout(FLOW_HARD_TIMEOUT)
@@ -298,7 +311,7 @@ public class IpPacketHandler {
 		if (toInternet) {
 			srcDstInstruction = InstructionFactory.createMutableInstruction(PV, InstructionType.APPLY_ACTIONS)
 					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC))
-					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC))
+					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC))
 					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP))
 					// .addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.TCP_SRC, port))
 					.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
@@ -333,7 +346,7 @@ public class IpPacketHandler {
 				// .addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.TCP_DST, port));
 		LOG.info("NAT: IpPacketHandler tcpToInternet(): created reverse matching fields for TCP");
 
-		dstSrcFlow.tableId(FLOW_TABLE)
+		dstSrcFlow.tableId(T1_TABLE)
 		.cookie((long) port.toInt())
 				.flowModFlags(FLOW_FLAGS)
 				.hardTimeout(FLOW_HARD_TIMEOUT)
@@ -359,7 +372,7 @@ public class IpPacketHandler {
 			mc.packetOut().addAction( ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC));
 
 			if (toInternet)
-				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC));
+				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC));
 			else mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, targetMacAddr));
 
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP));
@@ -370,15 +383,20 @@ public class IpPacketHandler {
 		}
 
 		try {
-			mControllerService.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			mControllerService.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			LOG.info("NAT: IpPacketHandler: tcp(): flows sended to datapath {}", Network.SDN_DPID);
+			cs.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			cs.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			LOG.info("NAT: IpPacketHandler: tcp(): flows sended to datapath {}", Network.SDN_DPID_HP1);
+			
+			perf.flowCreated(System.currentTimeMillis() - tcpTimer); //TODO performance
 		} catch (Exception e) {
 			LOG.info("NAT: IpPacketHandler: tcp(): Exception: {}", e.getCause());
 		}
 	}
 
 	public void udp(boolean toInternet, MessageContext mc, Ethernet ethData, Ip ipData, Udp udpData, MacAddress targetMacAddr, BigPortNumber inPort) {
+		//TODO performance
+		long udpTimer = System.currentTimeMillis();
+		
 		LOG.info("NAT: IpPacketHandler: udp(): handling UDP packet");
 		port = portPool.get();
 
@@ -395,7 +413,7 @@ public class IpPacketHandler {
 				// .addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.UDP_DST, PortNumber.valueOf(udpData.dstPort().getNumber())));
 		LOG.info("NAT: IpPacketHandler: udp(): created direct matching fields for UDP");
 
-		srcDstFlow.tableId(FLOW_TABLE)
+		srcDstFlow.tableId(T1_TABLE)
 				.flowModFlags(FLOW_FLAGS)
 				.cookie((long) port.toInt())
 				.hardTimeout(FLOW_HARD_TIMEOUT)
@@ -409,7 +427,7 @@ public class IpPacketHandler {
 			srcDstInstruction = InstructionFactory
 					.createMutableInstruction(PV, InstructionType.APPLY_ACTIONS)
 					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC))
-					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC))
+					.addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC))
 					.addAction(ActionFactory.createActionSetField(PV,OxmBasicFieldType.IPV4_SRC, Network.SVI_IP))
 					// .addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.UDP_SRC, port))
 					.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT,Network.SVI_PORT));
@@ -444,7 +462,7 @@ public class IpPacketHandler {
 				// .addField(FieldFactory.createBasicField(PV, OxmBasicFieldType.UDP_DST, port));
 		LOG.info("NAT: IpPacketHandler udp(): created reverse matching fields for UDP");
 
-		dstSrcFlow.tableId(FLOW_TABLE)
+		dstSrcFlow.tableId(T1_TABLE)
 				.cookie((long) port.toInt())
 				.flowModFlags(FLOW_FLAGS)
 				.hardTimeout(FLOW_HARD_TIMEOUT)
@@ -470,7 +488,7 @@ public class IpPacketHandler {
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_SRC, Network.SVI_MAC));
 			
 			if (toInternet) 
-				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.DEE_GATEWAY_MAC));
+				mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, Network.STAFF_GATEWAY_MAC));
 			else mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.ETH_DST, targetMacAddr));
 			
 			mc.packetOut().addAction(ActionFactory.createActionSetField(PV, OxmBasicFieldType.IPV4_SRC, Network.SVI_IP));
@@ -481,9 +499,11 @@ public class IpPacketHandler {
 		}
 
 		try {
-			mControllerService.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			mControllerService.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID, FlowClass.UNSPECIFIED);
-			LOG.info("NAT: IpPacketHandler: udp(): flows sended to datapath {}", Network.SDN_DPID);
+			cs.sendFlowMod((OfmFlowMod) srcDstFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			cs.sendFlowMod((OfmFlowMod) dstSrcFlow.toImmutable(), Network.SDN_DPID_HP1, FlowClass.UNSPECIFIED);
+			LOG.info("NAT: IpPacketHandler: udp(): flows sended to datapath {}", Network.SDN_DPID_HP1);
+			
+			perf.flowCreated(System.currentTimeMillis() - udpTimer); //TODO performance
 		} catch (Exception e) {
 			LOG.info("NAT: IpPacketHandler: udp(): Exception: {}", e.getCause());
 		}
@@ -520,7 +540,7 @@ public class IpPacketHandler {
 		packetOut.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
 
 		try {
-			mControllerService.send(packetOut.toImmutable(), Network.SDN_DPID);
+			cs.send(packetOut.toImmutable(), Network.SDN_DPID_HP1);
 			LOG.info("NAT: IpPacketHandler: icmpReply(): packetOut sent");
 		} catch (Exception e) {
 			LOG.error("NAT: IpPacketHandler: icmpReply(): Exception {}", e.getCause());

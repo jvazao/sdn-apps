@@ -40,18 +40,17 @@ import com.hp.util.pkt.Udp;
 public class PacketListener implements SequencedPacketListener {
     
     private static final Logger LOG = LoggerFactory.getLogger(PacketListener.class);
-    private static ControllerService mControllerService;
+    private static ControllerService cs;
     private ArpPacketHandler arp;
     private IpPacketHandler nat;
     private DhcpPacketHandler dhcp;
-    
+    private MacAddress targetMacAddr;
     private static final int ALTITUDE = 60000;
     private static final Set<ProtocolId> INTEREST = EnumSet.of(ProtocolId.IP, ProtocolId.ICMP, ProtocolId.ARP);
     
-    private MacAddress targetMacAddr;
-    
-    public void init(final ControllerService controllerService, ArpPacketHandler arpHandler, DhcpPacketHandler dhcpHandler, IpPacketHandler ipHandler) {
-        mControllerService = controllerService;
+    public void init(final ControllerService controllerService, 
+        ArpPacketHandler arpHandler, DhcpPacketHandler dhcpHandler, IpPacketHandler ipHandler) {
+        cs = controllerService;
         arp = arpHandler;
         dhcp = dhcpHandler;
         nat = ipHandler;
@@ -59,12 +58,12 @@ public class PacketListener implements SequencedPacketListener {
     }
     
     public void startup() {
-        mControllerService.addPacketListener(this, PacketListenerRole.DIRECTOR, ALTITUDE, INTEREST);
+        cs.addPacketListener(this, PacketListenerRole.DIRECTOR, ALTITUDE, INTEREST);
         LOG.info("NAT: PacketListener: startup()");
     }
     
     public void shutdown() {
-        mControllerService.removePacketListener(this);
+        cs.removePacketListener(this);
         LOG.info("NAT: PacketListener: shutdown()");
     }
     
@@ -78,13 +77,13 @@ public class PacketListener implements SequencedPacketListener {
         if (packetInData.has(ProtocolId.ARP)) {
             Arp arpData = packetInData.get(ProtocolId.ARP);
             
-            if (Network.DEE_DOMAIN.contains(arpData.senderIpAddr()) && arpData.targetIpAddr().equals(Network.SVI_IP) 
+            if (Network.STAFF_DOMAIN.contains(arpData.senderIpAddr()) && arpData.targetIpAddr().equals(Network.SVI_IP) 
             		&& arpData.opCode().equals(Arp.OpCode.REQ)) {
          
                 LOG.info("NAT: PacketListener: event(): ARP REQ to SVI");
                 arp.reply(arpData, ofPacketIn.getInPort());
                 
-            } else if (Network.DEE_DOMAIN.contains(arpData.senderIpAddr()) && Network.DEE_DOMAIN.contains(arpData.targetIpAddr())) {
+            } else if (Network.STAFF_DOMAIN.contains(arpData.senderIpAddr()) && Network.STAFF_DOMAIN.contains(arpData.targetIpAddr())) {
             	LOG.info("NAT: PacketListener: envent(): ARP REQ from connected Network");
                 arp.handle(arpData);
           
@@ -97,41 +96,41 @@ public class PacketListener implements SequencedPacketListener {
             Ip ipData = packetInData.get(ProtocolId.IP);
             Ethernet ethData = packetInData.get(ProtocolId.ETHERNET);
             
-            // DHCP client traffic to instantiate the Network class values
-           if (packetInData.has(ProtocolId.DHCP)) {
+            if (packetInData.has(ProtocolId.DHCP)) {
             	Dhcp dhcpData = packetInData.get(ProtocolId.DHCP);
             	
-            	if (dhcpData.transId() == dhcp.getTransId() && dhcpData.opCode().equals(OpCode.BOOT_REPLY)) {		
+                // DHCP server traffic to the SVI
+            	if (dhcpData.transId() == dhcp.getTransId() && dhcpData.opCode().equals(OpCode.BOOT_REPLY)){
             		if (dhcpData.msgType().equals(DhcpOption.MessageType.OFFER)) {
-                		
-                		LOG.info("NAT: PacketListener: event(): DHCP OFFER to the SVI");
-                		dhcp.request(dhcpData, ipData.dstAddr(), ipData.srcAddr());
+                        LOG.info("NAT: PacketListener: event(): DHCP OFFER to the SVI");
+                        dhcp.request(dhcpData, ipData.dstAddr(), ipData.srcAddr());
                 		
             		} else if (dhcpData.msgType().equals(DhcpOption.MessageType.ACK)) {
                 		LOG.info("NAT: PacketListener: event(): DHCP ACK to the SVI");
-
                 		Network.SVI_IP = dhcpData.yourAddr();
-                		LOG.info("NAT: PacketListener: event(): DHCP ACK  yourAddress: {} - {}", dhcpData.yourAddr() );
+                		LOG.info("NAT: PacketListener: event(): DHCP ACK  yourAddress: {}", dhcpData.yourAddr());
                 		
-                		//Set the timer for 80% of the hour lease time
+                		// Set the timer for 80% of the hour lease time
                 		/*leaseTime = new TimePeriod(
                 				new Date(System.currentTimeMillis()),
                 				new Date(System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(48))
                 		);*/
                 		
             		} else {
-            			LOG.info("NAT: IpPacketHandler: event(): DHCP Untreated : {}", dhcpData.msgType());
-            			//TODO deal with other message types
-            			//TODO send 
+            			LOG.info("NAT: PacketListener: event(): DHCP Untreated: {}", dhcpData.msgType());
+            			// TODO deal with other DHCP message types
             		}
             	} else {
-            		if (Network.SVI_IP.isUndetermined())
-            			dhcp.discovery();
+                    // Traffic not destined to the Sdn network, nor to the SVI
+                    LOG.info("NAT: PacketListener: envent(): dropping DHCP traffic");
+                    // Blocks any downstream directors from emitting  a packet-out response.
+                    messageContext.packetOut().clearActions();
+                    messageContext.packetOut().block();
             	}
             }
             
             // ICMP traffic intended to the SVI
-            if (Network.DEE_DOMAIN.contains(ipData.srcAddr()) && ipData.dstAddr().equals(Network.SVI_IP)) {           	
+            if (Network.STAFF_DOMAIN.contains(ipData.srcAddr()) && ipData.dstAddr().equals(Network.SVI_IP)) {           	
             	if (packetInData.has(ProtocolId.ICMP)) {
             		LOG.info("NAT: IpPacketHandler: event(): ICMP to SVI");
             		
@@ -142,7 +141,7 @@ public class PacketListener implements SequencedPacketListener {
             
             // SDN network trying to reach inside the Layer2 DEE Network
             if (Network.SDN_DOMAIN.contains(ipData.srcAddr()) && !Network.SDN_DOMAIN.contains(ipData.dstAddr()) 
-            		&& Network.DEE_DOMAIN.contains(ipData.dstAddr())) {
+            		&& Network.STAFF_DOMAIN.contains(ipData.dstAddr())) {
                 
                 if (packetInData.has(ProtocolId.ICMP)) {
                    LOG.info("NAT: IpPacketHandler: event(): ICMP to Connected Network");
@@ -179,8 +178,10 @@ public class PacketListener implements SequencedPacketListener {
                 		arp.request(ipData.dstAddr());
                 	}              	
                 }
-            } else if (Network.SDN_DOMAIN.contains(ipData.srcAddr()) && !Network.SDN_DOMAIN.contains(ipData.dstAddr()) 
-            		&& !Network.DEE_DOMAIN.contains(ipData.dstAddr())) { // SDN network trying to reach the Internet
+            } else if (Network.SDN_DOMAIN.contains(ipData.srcAddr()) 
+                && !Network.SDN_DOMAIN.contains(ipData.dstAddr()) && !Network.STAFF_DOMAIN.contains(ipData.dstAddr())) { 
+                    
+                // SDN network trying to reach the Internet
 
                 if (packetInData.has(ProtocolId.DNS)) {
                     LOG.info("NAT: IpPacketHandler: event(): DNS query to Internet");

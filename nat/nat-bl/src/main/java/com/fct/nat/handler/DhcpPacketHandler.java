@@ -35,13 +35,13 @@ import com.hp.util.pkt.Packet;
 import com.hp.util.pkt.Udp;
 
 public class DhcpPacketHandler {
-	private ControllerService mControllerService;
+	private ControllerService cs;
 	private static final Logger LOG = LoggerFactory.getLogger(DhcpPacketHandler.class);
 	private static ProtocolVersion PV = ProtocolVersion.V_1_3;
 	private static final long TRANS_ID = 27995706; // random number
 
 	public DhcpPacketHandler(ControllerService controllerService) {
-		mControllerService = controllerService;
+		cs = controllerService;
 	}
 
 	/**
@@ -114,7 +114,7 @@ public class DhcpPacketHandler {
 		packetOut.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
 
 		try {
-			mControllerService.send(packetOut.toImmutable(), Network.SDN_DPID);
+			cs.send(packetOut.toImmutable(), Network.SDN_DPID_HP1);
 			LOG.info("NAT: DhcpPacketHandler: discovery(): packetOut sent");
 		} catch (OpenflowException e) {
 			LOG.error("NAT: DhcpPacketHandler: discovery(): Exception {}", e.getCause());
@@ -179,7 +179,7 @@ public class DhcpPacketHandler {
 		packetOut.addAction(ActionFactory.createAction(PV, ActionType.OUTPUT, Network.SVI_PORT));
 
 		try {
-			mControllerService.send(packetOut.toImmutable(), Network.SDN_DPID);
+			cs.send(packetOut.toImmutable(), Network.SDN_DPID_HP1);
 			LOG.info("NAT: DhcpPacketHandler: request(): packetOut sent");
 		} catch (OpenflowException e) {
 			LOG.error("NAT: DhcpPacketHandler: request(): Exception {}", e.getCause());
